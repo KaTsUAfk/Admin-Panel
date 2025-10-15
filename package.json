@@ -2,18 +2,38 @@
   "name": "admin-panel",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:3000",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "hls.js": "^1.6.13",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "sanitize-filename": "^1.6.3",
+    "uuid": "^13.0.0",
+    "web-vitals": "^2.1.4",
+    "express-rate-limit": "^7.1.5",
+    "joi": "^17.11.0",
+    "node-cache": "^5.1.2",
+    "winston": "^3.11.0"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "server_start": "nodemon ./backend/server.js",
+    "start": "cross-env PORT=3001 react-scripts start",
+    "dev": "concurrently \"npm run start\" \"npm run server_start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -23,6 +43,11 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "cross-env": "^10.1.0",
+    "nodemon": "^3.0.1"
   },
   "browserslist": {
     "production": [

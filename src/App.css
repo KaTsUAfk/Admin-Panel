@@ -1,38 +1,261 @@
-.App {
-  text-align: center;
+/* Глобальные переменные */
+:root {
+  --bg-primary: #f8f4e9; /* Теплый светлый фон */
+  --bg-secondary: #f8f9fa;
+  --bg-card: rgb(246, 247, 230);
+  --bg-fon: white;
+  --text-primary: #2d2b26;
+  --text-secondary: #6c757d;
+  --border-color: #ddd;
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --accent-color: #dab76f;
+  --body-bg: var(--bg-primary); /* Используем переменную */
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+[data-theme="dark"],
+.dark-theme {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-card: #1e1e1e;
+  --bg-fon: rgb(37, 41, 40);
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --border-color: #333333;
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --accent-color: #dab76f;
+  --body-bg: linear-gradient(
+    135deg,
+    #121212 0%,
+    #0a0a0a 100%
+  ); /* Градиент только для темной темы */
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+/* Глобальные стили */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    sans-serif;
+  background: var(--body-bg);
+  color: var(--text-primary);
   min-height: 100vh;
+  line-height: 1.6;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sity-vibor {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-block-end: 0.5em;
+  margin-block-start: 0.3em;
+}
+/* p,
+label,
+td,
+th {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+} */
+
+.footer-content a {
+  text-decoration: none;
+  color: var(--accent-color);
+}
+
+.footer-content a:hover {
+  text-decoration: underline;
+  color: var(--accent-color);
+}
+
+/* Стили для компонентов */
+.admin-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 25px;
+  margin: 25px auto;
+  max-width: 1000px;
+  box-shadow: 0 6px 20px var(--shadow-color);
+  overflow: hidden;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.admin-admin-container {
+  background: var(--bg-fon);
+  padding: 25px auto;
+  box-shadow: 0 6px 20px var(--shadow-color);
+  overflow: hidden;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.login-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 6px 20px var(--shadow-color);
+  max-width: 420px;
+  margin: 60px auto;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.main-header {
+  background-color: var(--accent-color);
+  color: #000;
+  transition: background-color 0.3s ease;
+}
+
+.main-footer {
+  background-color: #111;
+  color: var(--text-secondary);
+  transition: background-color 0.3s ease;
+}
+
+.files-sity-container {
+  marginbottom: 20px;
+  padding: 15px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  borderradius: 8px;
+}
+
+/* Стили для таблиц */
+.devices-table,
+.video-files-table,
+.login-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.devices-table th,
+.devices-table td,
+.video-files-table th,
+.video-files-table td,
+.login-history-table th,
+.login-history-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid var(--border-color);
+  transition: border-color 0.3s ease;
+}
+
+.devices-table th,
+.video-files-table th,
+.login-history-table th {
+  background-color: var(--bg-secondary);
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.devices-table tr:nth-child(even),
+.login-history-table tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+  transition: background-color 0.3s ease;
+}
+
+/* Стили для кнопок */
+button {
+  background-color: var(--accent-color);
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--accent-color);
+  padding: 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Стили для формы входа */
+.login-container form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 15px;
 }
 
-.App-link {
-  color: #61dafb;
+.login-container label {
+  font-weight: 500;
+  margin-bottom: 5px;
+  display: block;
+  color: var(--text-primary);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.login-container input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.login-container button {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--accent-color);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.login-container button:hover {
+  opacity: 0.9;
+}
+
+.login-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-container .error-message {
+  color: red;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .admin-container {
+    margin: 15px;
+    padding: 15px;
+    max-width: 100%;
   }
-  to {
-    transform: rotate(360deg);
+
+  .devices-table th,
+  .devices-table td,
+  .video-files-table th,
+  .video-files-table td {
+    padding: 6px;
+    font-size: 0.85rem;
+  }
+
+  .global-actions-buttons {
+    flex-direction: column;
+    gap: 8px;
   }
 }

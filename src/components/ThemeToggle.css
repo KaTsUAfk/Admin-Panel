@@ -1,0 +1,49 @@
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #DAB76F;
+  border-radius: 20px;
+  background: white;
+  color: #2D2B26;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-toggle-btn:hover {
+  background: #F8F4E9;
+  transform: translateY(-1px);
+}
+
+.theme-toggle-btn.dark {
+  background: #2D2B26;
+  color: white;
+  border-color: #DAB76F;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle-btn.dark:hover {
+  background: #3A3833;
+  transform: translateY(-1px);
+}
+
+.theme-icon {
+  font-size: 1.1rem;
+}
+
+.theme-label {
+  font-weight: 500;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .theme-label {
+    display: none;
+  }
+  .theme-toggle-btn {
+    padding: 8px;
+  }
+}
