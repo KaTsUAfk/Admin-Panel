@@ -1,6 +1,7 @@
 import React from "react";
 import "./Layout.css";
 import ThemeToggle from "./ThemeToggle";
+import LogoutButton from "./LogoutButton";
 
 const Layout = ({ children }) => {
   return (
@@ -20,7 +21,10 @@ const Layout = ({ children }) => {
           >
             Админ-панель
           </h1>
-          <ThemeToggle />
+          <div>
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </div>
       </header>
       <main className="main-content">{children}</main>

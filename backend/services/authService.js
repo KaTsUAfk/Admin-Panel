@@ -1,160 +1,137 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const Helpers = require('../utils/helpers');
-const config = require('../config');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const config = require("../config");
+const { PrismaClient } = require("@prisma/client");
 
-const SALT_ROUNDS = 12; // достаточно для безопасности
+const prisma = new PrismaClient();
+const SALT_ROUNDS = 12;
 
 class AuthService {
-  constructor(usersFilePath, activeTokensPath) {
-    this.usersFilePath = usersFilePath;
-    this.activeTokensPath = activeTokensPath;
-    this.users = this.loadUsers();
-    this.activeTokens = new Set(Helpers.loadJsonFile(this.activeTokensPath, []));
-  }
-
-    loadUsers() {
-    return Helpers.loadJsonFile(this.usersFilePath, [
-      {
-        id: 1,
-        username: 'admin',
-        passwordHash: bcrypt.hashSync('admin', SALT_ROUNDS),
-        role: 'admin'
-      }
-    ]);
-  }
-
-  saveUsers() {
-    return Helpers.saveJsonFile(this.usersFilePath, this.users);
-  }
-
-  saveActiveTokens() {
-    const tokensArray = Array.from(this.activeTokens);
-    return Helpers.saveJsonFile(this.activeTokensPath, tokensArray);
-  }
-
-  cleanupExpiredTokens() {
-    const validTokens = new Set();
-    
-    for (const token of this.activeTokens) {
-      try {
-        jwt.verify(token, config.SECRET_KEY);
-        validTokens.add(token);
-      } catch (err) {
-        console.log('Удален истекший токен');
-      }
-    }
-    
-    if (validTokens.size !== this.activeTokens.size) {
-      this.activeTokens = validTokens;
-      this.saveActiveTokens();
-      console.log(`Очищено устаревших токенов. Осталось валидных: ${this.activeTokens.size}`);
-    }
-  }
-
   async login(username, password, ip, userAgent) {
-    const user = this.users.find(u => u.username === username);
-    if (!user || !await bcrypt.compare(password, user.passwordHash)) {
-      return { success: false, error: 'Неверный логин или пароль' };
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return { success: false, error: "Неверный логин или пароль" };
     }
 
     const token = jwt.sign(
-      { id: user.id, 
-        username: user.username, 
-        role: user.role || 'user' 
-      },
+      { id: user.id, username: user.username, role: user.role },
       config.SECRET_KEY,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
 
-    this.activeTokens.add(token);
-    this.saveActiveTokens();
+    // Сохраняем токен в памяти
+    if (!global.activeTokens) global.activeTokens = new Set();
+    global.activeTokens.add(token);
 
     return {
       success: true,
-      message: 'Вход выполнен',
+      message: "Вход выполнен",
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role || 'user'
-      }
+      user: { id: user.id, username: user.username, role: user.role },
     };
   }
 
-async register(username, password) {
-    if (this.users.find(u => u.username === username)) {
-      return { success: false, error: 'Пользователь уже существует' };
+  async registerUser(username, password) {
+    try {
+      // Проверка уникальности
+      const existing = await prisma.user.findUnique({ where: { username } });
+      if (existing) {
+        return { success: false, error: "Пользователь уже существует" };
+      }
+
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      const user = await prisma.user.create({
+        data: {
+          username,
+          password: hashedPassword,
+          role: "moderator", // или "user" — по умолчанию
+        },
+        select: { id: true, username: true, role: true },
+      });
+
+      return { success: true, user };
+    } catch (error) {
+      console.error("Registration failed:", error);
+      return { success: false, error: "Ошибка при создании пользователя" };
     }
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const newUser = {
-      id: this.users.length + 1,
-      username,
-      passwordHash, // ← не сохраняем plain password!
-      role: 'user'
-    };
-    this.users.push(newUser);
-    this.saveUsers();
-    
-    const token = jwt.sign(
-      { id: newUser.id, username: newUser.username, role: 'user' }, 
-      config.SECRET_KEY, 
-      { expiresIn: '24h' }
-    );
-    
-    this.activeTokens.add(token);
-    this.saveActiveTokens();
-    
-    return {
-      success: true,
-      message: 'Регистрация успешна',
-      token,
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        role: 'user'
-      }
-    };
   }
 
+  logout(req) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader?.split(" ")[1];
+    if (token && global.activeTokens?.has(token)) {
+      global.activeTokens.delete(token);
+    }
+  }
 
   authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Требуется авторизация' });
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+    // Также проверяем токен из cookies
+    const cookieToken = req.cookies?.authToken;
+    const finalToken = token || cookieToken;
+
+    if (!finalToken) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Токен отсутствует" });
     }
-    
-    jwt.verify(token, config.SECRET_KEY, (err, user) => {
+
+    jwt.verify(finalToken, config.SECRET_KEY, (err, user) => {
       if (err) {
-        console.error('JWT verification error:', err);
-        return res.status(403).json({ error: 'Неверный токен' });
+        return res
+          .status(403)
+          .json({ success: false, error: "Неверный или просроченный токен" });
       }
-      
-      if (!this.activeTokens.has(token)) {
-        return res.status(403).json({ error: 'Сессия завершена' });
-      }
-      
       req.user = user;
       next();
     });
   }
-  
 
-  logout(req) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (token && this.activeTokens.has(token)) {
-      this.activeTokens.delete(token);
-      this.saveActiveTokens();
-      console.log(`Токен удален из активных сессий. Осталось токенов: ${this.activeTokens.size}`);
+  // Методы для проверки токена (используются на клиенте)
+  static isAuthenticated(token) {
+    if (!token) return false;
+
+    try {
+      const decoded = jwt.decode(token);
+      return decoded && decoded.exp * 1000 > Date.now();
+    } catch {
+      return false;
     }
   }
+
+  static getTokenExpiry(token) {
+    if (!token) return null;
+
+    try {
+      const decoded = jwt.decode(token);
+      return decoded ? decoded.exp * 1000 : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Метод для проверки валидности токена (на сервере)
+  verifyToken(token) {
+    try {
+      return jwt.verify(token, config.SECRET_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  cleanupExpiredTokens() {
+    if (!global.activeTokens) return;
+    const validTokens = new Set();
+    for (const token of global.activeTokens) {
+      try {
+        jwt.verify(token, config.SECRET_KEY);
+        validTokens.add(token);
+      } catch {}
+    }
+    global.activeTokens = validTokens;
+  }
 }
-
-
 
 module.exports = AuthService;

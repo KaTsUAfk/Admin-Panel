@@ -26,7 +26,7 @@ class VideoService {
         if (!fs.existsSync(videoDir)) {
           fs.mkdirSync(videoDir, { recursive: true });
         }
-
+        console.log("📁 Загрузка в директорию:", videoDir);
         cb(null, videoDir);
       },
       filename: (req, file, cb) => {
@@ -88,6 +88,7 @@ class VideoService {
             originalName: req.file.originalname,
             size: req.file.size,
             city: city,
+            fullPath: req.file.path,
           },
         });
       });

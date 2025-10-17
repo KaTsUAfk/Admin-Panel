@@ -7,7 +7,7 @@ import Layout from "./Layout";
 import ActiveSessions from "./ActiveSessions";
 import VideoPlayer from "./VideoPlayer";
 import CitySwitcher from "./CitySwitcher";
-import { useCity } from "./CityContext"; // Добавить эту строку
+import { useCity } from "./CityContext";
 import {
   getStatus,
   getScriptStatus,
@@ -15,110 +15,141 @@ import {
   restartAllDevices,
   runConcatScript,
 } from "../services/api";
-import { isAuthenticated, getCurrentUser } from "../services/authService"; // ← getCurrentUser из authService
+import { isAuthenticated, getCurrentUser } from "../services/authService";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const [serverStatus, setServerStatus] = useState("Загрузка...");
-  const [devices, setDevices] = useState([]);
-  const { currentCity, changeCity } = useCity(); // ← только из контекста
+  const { changeCity } = useCity();
   const currentUser = getCurrentUser();
+
+  
   const isAdmin = currentUser?.role === "admin";
+  const isModerator = currentUser?.role === "moderator";
 
-  console.log("Current user:", currentUser);
-  console.log("Is admin:", isAdmin);
+  const [serverData, setServerData] = useState(null);
+  const [localTime, setLocalTime] = useState(new Date());
+  const [devices, setDevices] = useState([]);
 
-  // Обработчик изменения города
   const handleCityChange = (city) => {
     changeCity(city);
   };
 
+  // Защита маршрута
   useEffect(() => {
     if (!isAuthenticated()) {
       navigate("/login");
     }
   }, [navigate]);
 
+  // Загрузка статуса с сервера
   const fetchStatus = async () => {
     try {
       const data = await getStatus();
-      setServerStatus(
-        `<strong>Статус:</strong> ${data.status} | 
-         <strong>Время:</strong> ${new Date(
-           data.serverTime
-         ).toLocaleTimeString()} | 
-         <strong>Устройство:</strong> ${data.activeDevices} | 
-         <strong>Сессия:</strong> ${data.session.phase} (${data.session.id})`
-      );
+      setServerData(data);
       setDevices(data.devices || []);
     } catch (e) {
       if (e.message === "Требуется повторная авторизация") {
-        setServerStatus("Сессия истекла. Пожалуйста, войдите снова.");
+        setServerData({ error: "Сессия истекла. Пожалуйста, войдите снова." });
+        toast.error("Сессия истекла. Пожалуйста, войдите снова.");
       } else {
-        setServerStatus("Ошибка загрузки статуса");
+        setServerData({ error: "Ошибка загрузки статуса" });
+        toast.error("Ошибка загрузки статуса");
       }
     }
   };
 
-  const monitorScriptProgress = () => {
-    const originalStatus = serverStatus;
-    setServerStatus(
-      "<strong>Статус:</strong> Выполняется скрипт обработки видео..."
-    );
+  // Таймер для обновления времени каждую секунду
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLocalTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
+  // Мониторинг скрипта обработки видео
+  const monitorScriptProgress = () => {
     const interval = setInterval(async () => {
       try {
         const data = await getScriptStatus();
-
         if (data.status === "completed" || data.status === "error") {
           clearInterval(interval);
-          setServerStatus(originalStatus);
-          alert(
-            data.status === "completed"
-              ? "Скрипт обработки видео завершен успешно!"
-              : `Ошибка выполнения скрипта: ${data.message}`
-          );
           fetchStatus();
-        } else if (data.status === "running") {
-          setServerStatus(
-            `<strong>Статус:</strong> Скрипт выполняется... (${
-              data.progress || "выполняется"
-            })`
-          );
+          if (data.status === "completed") {
+            toast.success("Скрипт обработки видео завершён успешно!");
+          } else {
+            toast.error(`Ошибка выполнения скрипта: ${data.message}`);
+          }
         }
       } catch (e) {
         console.error("Ошибка мониторинга:", e);
+        toast.error("Ошибка при мониторинге выполнения скрипта");
       }
     }, 2000);
-
     return () => clearInterval(interval);
   };
 
+  // Загрузка статуса при монтировании
   useEffect(() => {
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 3000);
-    return () => clearInterval(intervalId);
   }, []);
+
+  // Защита от рендеринга до загрузки данных
+  if (!serverData) {
+    return (
+      <Layout>
+        <div className="admin-admin-container">
+          <div className="admin-container">Загрузка...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="admin-admin-container">
         <div className="admin-container">
-          <div
-            className="status_div"
-            dangerouslySetInnerHTML={{ __html: serverStatus }}
-          ></div>
+          {/* Статус сервера — безопасный JSX */}
+          <div className="status_div">
+            {serverData.error ? (
+              <span style={{ color: "red" }}>{serverData.error}</span>
+            ) : (
+              <>
+                <strong>Статус:</strong> {serverData.status} |{" "}
+                <strong>Время:</strong> {localTime.toLocaleTimeString()} |{" "}
+                <strong>Устройство:</strong> {serverData.activeDevices} |{" "}
+                <strong>Сессия:</strong> {serverData.session.phase} (
+                {serverData.session.id})
+              </>
+            )}
+          </div>
+
+          {/* Кнопка обновления */}
+          <button
+            onClick={fetchStatus}
+            style={{
+              marginTop: "8px",
+              padding: "6px 12px",
+              backgroundColor: "#DAB76F",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+            }}
+          >
+            🔄 Обновить статус
+          </button>
 
           {/* Переключатель городов */}
           <CitySwitcher onCityChange={handleCityChange} />
 
-          {/* Плеер только для админа */}
-          {isAdmin && <VideoPlayer />}
+          {/* Плеер для админа и модератора */}
+          {(isAdmin || isModerator) && <VideoPlayer />}
 
           <div className="main">
             <h2 style={{ marginTop: "50px" }}>Управление видеофайлами</h2>
-            <VideoManager onFilesChange={() => fetchStatus()} />
+            <VideoManager onFilesChange={fetchStatus} />
 
             <h2>Активные устройства</h2>
             <DevicesTable
@@ -127,13 +158,17 @@ const AdminPanel = () => {
               onCommandSent={fetchStatus}
             />
 
-            <h2>Глобальные действия</h2>
-            <GlobalActions
-              restartAll={restartAllDevices}
-              runConcatScript={runConcatScript}
-              monitorScriptProgress={monitorScriptProgress}
-              fetchStatus={fetchStatus}
-            />
+            {(isAdmin || isModerator) && (
+              <>
+                <h2>Глобальные действия</h2>
+                <GlobalActions
+                  restartAll={restartAllDevices}
+                  runConcatScript={runConcatScript}
+                  monitorScriptProgress={monitorScriptProgress}
+                  fetchStatus={fetchStatus}
+                />
+              </>
+            )}
 
             {isAdmin && (
               <>

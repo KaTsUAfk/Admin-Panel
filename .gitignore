@@ -6,6 +6,8 @@ backend/logs/*.log
 /.pnp
 .pnp.js
 
+/.vscode
+
 # testing
 /coverage
 
@@ -24,3 +26,5 @@ yarn-debug.log*
 yarn-error.log*
 
 build.zip
+
+/src/generated/prisma

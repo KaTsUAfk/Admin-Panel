@@ -1,79 +1,177 @@
-import React, { useState, useEffect } from 'react';
-import { useCity } from './CityContext';
-import api from '../services/api';
-import './VideoManager.css';
+import React, { useState, useEffect, useRef } from "react";
+import { useCity } from "./CityContext";
+import api from "../services/api";
+import "./VideoManager.css";
+import { getCurrentUser } from "../services/authService";
 
 // Подкомпонент для загрузки видео
-const VideoUpload = ({ onUpload, uploading, cityName }) => {
+const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
   const [file, setFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [progress, setProgress] = useState(0);
+  const abortControllerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const currentUser = getCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Автоматически скрывать статус через 5 сек
+  useEffect(() => {
+    if (uploadStatus) {
+      const timer = setTimeout(() => setUploadStatus(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadStatus]);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFiles(Array.from(files));
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleFiles = (files) => {
+    const validFiles = files.filter((f) => {
+      const isValidType =
+        f.type.startsWith("video/") || f.name.toLowerCase().endsWith(".mp4");
+      const isNotTooBig = f.size <= 500 * 1024 * 1024;
+      return isValidType && isNotTooBig;
+    });
+
+    if (validFiles.length === 0) {
+      setUploadStatus("❌ Ни один из файлов не прошёл валидацию");
+      setFile(null);
+      return;
+    }
+
+    // Берём первый файл (можно расширить до очереди)
+    const selectedFile = validFiles[0];
+    setFile(selectedFile);
+    setUploadStatus("");
+    setProgress(0);
+  };
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
-    setUploadStatus('');
-
-    // Валидация файла
-    if (selectedFile) {
-      if (!selectedFile.type.startsWith('video/') && !selectedFile.name.toLowerCase().endsWith('.mp4')) {
-        setUploadStatus('❌ Разрешены только видеофайлы');
-        setFile(null);
-        return;
-      }
-
-      if (selectedFile.size > 500 * 1024 * 1024) {
-        setUploadStatus('❌ Файл слишком большой. Максимальный размер: 500MB');
-        setFile(null);
-        return;
-      }
-    }
+    const files = Array.from(e.target.files);
+    handleFiles(files);
   };
 
   const handleUpload = async () => {
     if (!file) {
-      setUploadStatus('❌ Выберите файл для загрузки');
+      setUploadStatus("❌ Выберите файл для загрузки");
       return;
     }
 
-    setUploadStatus('⏳ Загрузка...');
-    const result = await onUpload(file);
+    setUploadStatus("⏳ Загрузка...");
+    setProgress(0);
+
+    const result = await onUpload(
+      file,
+      (p) => setProgress(p),
+      () => {
+        abortControllerRef.current = new AbortController();
+        return abortControllerRef.current.signal;
+      }
+    );
 
     if (result.success) {
-      setUploadStatus(`✅ ${result.message} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      setUploadStatus(
+        `✅ ${result.message} (${(file.size / 1024 / 1024).toFixed(2)} MB)`
+      );
       setFile(null);
-      // Очищаем input file
-      document.querySelector('#video-upload-input').value = '';
+      document.querySelector("#video-upload-input").value = "";
     } else {
       setUploadStatus(`❌ ${result.message}`);
     }
+    setProgress(0);
   };
 
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setUploadStatus("❌ Загрузка отменена");
+      setUploading(false);
+    }
+  };
+  const handleDropzoneClick = () => {
+    if (!uploading && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
   return (
     <div className="video-upload-section">
       <h3>📤 Загрузить новое видео</h3>
-      
+
       <div className="upload-controls">
-        <input
-          id="video-upload-input"
-          type="file"
-          accept="video/*,.mp4"
-          onChange={handleFileChange}
-          disabled={uploading}
-          className="file-input"
-        />
-        
-        <button 
+        <div
+          className={`dropzone ${isDragging ? "dragging" : ""}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setIsDragging(false)}
+          onClick={handleDropzoneClick}
+          style={{ cursor: uploading ? "not-allowed" : "pointer" }}
+        >
+          {/* Скрытый input */}
+          <input
+            ref={fileInputRef} // ← привязка ref
+            id="video-upload-input"
+            type="file"
+            accept="video/*,.mp4"
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="file-input"
+            multiple
+          />
+          {isDragging
+            ? "Отпустите файл сюда!"
+            : "Перетащите видео или нажмите для выбора"}
+        </div>
+
+        <button
           onClick={handleUpload}
           disabled={!file || uploading}
           className="upload-button"
         >
-          {uploading ? '📤 Загрузка...' : '📤 Загрузить видео'}
+          {uploading ? "📤 Загрузка..." : "📤 Загрузить видео"}
         </button>
+
+        {uploading && (
+          <button onClick={handleCancel} className="cancel-button">
+            ❌ Отменить
+          </button>
+        )}
       </div>
 
+      {file && (
+        <div className="file-preview">
+          📄 {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+        </div>
+      )}
+
+      {progress > 0 && progress < 100 && (
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${progress}%` }}
+          ></div>
+          <span className="progress-text">{progress}%</span>
+        </div>
+      )}
+
       {uploadStatus && (
-        <div 
-          className={`upload-status ${uploadStatus.includes('✅') ? 'success' : 'error'}`}
+        <div
+          className={`upload-status ${
+            uploadStatus.includes("✅") ? "success" : "error"
+          }`}
           dangerouslySetInnerHTML={{ __html: uploadStatus }}
         />
       )}
@@ -83,9 +181,11 @@ const VideoUpload = ({ onUpload, uploading, cityName }) => {
           <strong>Требования:</strong>
         </p>
         <ul>
-          <li>✅ Формат: MP4</li>
+          <li>✅ Форматы: MP4, MOV, AVI (рекомендуется MP4)</li>
           <li>✅ Максимальный размер: 500MB</li>
-          <li>📍 Файл будет загружен в город: <strong>{cityName}</strong></li>
+          <li>
+            📍 Файл будет загружен в город: <strong>{cityName}</strong>
+          </li>
         </ul>
       </div>
     </div>
@@ -95,6 +195,8 @@ const VideoUpload = ({ onUpload, uploading, cityName }) => {
 // Подкомпонент для списка файлов
 const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
   const [deletingFile, setDeletingFile] = useState(null);
+  const currentUser = getCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   const handleDelete = async (filename) => {
     setDeletingFile(filename);
@@ -107,15 +209,15 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('ru-RU');
+    return new Date(dateString).toLocaleString("ru-RU");
   };
 
   if (loading) {
@@ -134,7 +236,7 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
     <div className="video-list-section">
       <div className="list-header">
         <h3>📁 Доступные видеофайлы ({cityName})</h3>
-        <button 
+        <button
           onClick={onRefresh}
           className="refresh-button"
           title="Обновить список"
@@ -146,7 +248,9 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
       {files.length === 0 ? (
         <div className="empty-state">
           <p>📭 Нет видеофайлов в городе {cityName}</p>
-          <p className="empty-hint">Загрузите первое видео используя форму выше</p>
+          <p className="empty-hint">
+            Загрузите первое видео используя форму выше
+          </p>
         </div>
       ) : (
         <div className="files-table-container">
@@ -161,7 +265,10 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
             </thead>
             <tbody>
               {files.map((file) => (
-                <tr key={file.name} className={deletingFile === file.name ? 'deleting' : ''}>
+                <tr
+                  key={file.name}
+                  className={deletingFile === file.name ? "deleting" : ""}
+                >
                   <td className="filename-cell">
                     <span className="filename" title={file.name}>
                       {file.name}
@@ -172,31 +279,33 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
                       </span>
                     )}
                   </td>
-                  <td className="size-cell">
-                    {formatFileSize(file.size)}
-                  </td>
-                  <td className="date-cell">
-                    {formatDate(file.modified)}
-                  </td>
+                  <td className="size-cell">{formatFileSize(file.size)}</td>
+                  <td className="date-cell">{formatDate(file.modified)}</td>
                   <td className="actions-cell">
-                    <button
-                      onClick={() => handleDelete(file.name)}
-                      disabled={deletingFile === file.name}
-                      className="delete-button"
-                      title={`Удалить файл ${file.name}`}
-                    >
-                      {deletingFile === file.name ? '⏳' : '🗑️'}
-                      {deletingFile === file.name ? ' Удаление...' : ' Удалить'}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(file.name)}
+                        disabled={deletingFile === file.name}
+                        className="delete-button"
+                        title={`Удалить файл ${file.name}`}
+                      >
+                        {deletingFile === file.name ? "⏳" : "🗑️"}
+                        {deletingFile === file.name
+                          ? " Удаление..."
+                          : " Удалить"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
+
           <div className="files-summary">
-            Всего файлов: <strong>{files.length}</strong> | 
-            Общий размер: <strong>{formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}</strong>
+            Всего файлов: <strong>{files.length}</strong> | Общий размер:{" "}
+            <strong>
+              {formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}
+            </strong>
           </div>
         </div>
       )}
@@ -216,31 +325,77 @@ const VideoManager = ({ onFilesChange }) => {
     try {
       const result = await api.getVideoFiles();
       setFiles(result.files || []);
-      
-      // Уведомляем родительский компонент об изменении файлов
       if (onFilesChange) {
         onFilesChange(result.files || []);
       }
     } catch (error) {
-      console.error('Error loading files:', error);
+      console.error("Error loading files:", error);
       setFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpload = async (file) => {
+  const handleUpload = async (file, onProgress, getSignal) => {
     setUploading(true);
     try {
-      const result = await api.uploadVideo(file);
-      
-      if (result.success) {
-        // Обновляем список после успешной загрузки
-        await loadFiles();
-        return { success: true, message: result.message };
-      } else {
-        return { success: false, message: result.message };
-      }
+      const formData = new FormData();
+      formData.append("video", file);
+
+      const city = currentCity;
+
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        const signal = getSignal();
+
+        xhr.open("POST", "/api/upload-video");
+        xhr.setRequestHeader("X-City", city);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            onProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const result = JSON.parse(xhr.responseText);
+            if (result.success) {
+              loadFiles();
+              resolve({ success: true, message: result.message });
+            } else {
+              resolve({ success: false, message: result.message });
+            }
+          } else {
+            resolve({
+              success: false,
+              message: "Ошибка сервера при загрузке",
+            });
+          }
+        };
+
+        xhr.onerror = () => {
+          resolve({
+            success: false,
+            message: "Ошибка сети при загрузке",
+          });
+        };
+
+        xhr.onabort = () => {
+          resolve({
+            success: false,
+            message: "Загрузка отменена",
+          });
+        };
+
+        if (signal.aborted) {
+          xhr.abort();
+        } else {
+          signal.addEventListener("abort", () => xhr.abort());
+          xhr.send(formData);
+        }
+      });
     } catch (error) {
       return { success: false, message: error.message };
     } finally {
@@ -251,9 +406,7 @@ const VideoManager = ({ onFilesChange }) => {
   const handleDelete = async (filename) => {
     try {
       const result = await api.deleteVideoFile(filename);
-      
       if (result.success) {
-        // Обновляем список после успешного удаления
         await loadFiles();
         return { success: true, message: result.message };
       } else {
@@ -264,20 +417,19 @@ const VideoManager = ({ onFilesChange }) => {
     }
   };
 
-  // Загружаем файлы при монтировании и при изменении города
   useEffect(() => {
     loadFiles();
   }, [currentCity]);
 
   return (
     <div className="video-manager">
-      <VideoUpload 
+      <VideoUpload
         onUpload={handleUpload}
         uploading={uploading}
+        setUploading={setUploading}
         cityName={cityName}
       />
-      
-      <VideoFileList 
+      <VideoFileList
         files={files}
         loading={loading}
         onDelete={handleDelete}

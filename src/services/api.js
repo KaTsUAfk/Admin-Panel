@@ -1,13 +1,13 @@
 class ApiClient {
   constructor() {
-    this.BASE_URL = '/api';
-    this.currentCity = localStorage.getItem('currentCity') || 'kurgan';
+    this.BASE_URL = "/api";
+    this.currentCity = localStorage.getItem("currentCity") || "kurgan";
   }
 
   setCurrentCity(city) {
-    if (city === 'kurgan' || city === 'ekat') {
+    if (city === "kurgan" || city === "ekat") {
       this.currentCity = city;
-      localStorage.setItem('currentCity', city);
+      localStorage.setItem("currentCity", city);
     }
   }
 
@@ -17,40 +17,36 @@ class ApiClient {
 
   getHlsBaseUrl() {
     const cityConfig = {
-      kurgan: 'http://109.195.134.244:8096/kurgan',
-      ekat: 'http://109.195.134.244:8096/ekat'
+      kurgan: "http://109.195.134.244:8096/kurgan",
+      ekat: "http://109.195.134.244:8096/ekat",
     };
     return cityConfig[this.currentCity] || cityConfig.kurgan;
   }
 
-  getAuthHeaders(contentType = 'application/json') {
-    const token = localStorage.getItem('authToken');
+  // Убираем Authorization из заголовков — аутентификация через куки
+  getAuthHeaders(contentType = "application/json") {
     const headers = {};
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
     if (contentType) {
-      headers['Content-Type'] = contentType;
+      headers["Content-Type"] = contentType;
     }
-    
     return headers;
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.BASE_URL}${endpoint}`;
     const config = {
+      method: "GET",
+      credentials: "include", // ← куки будут отправляться автоматически
       headers: this.getAuthHeaders(),
-      ...options
+      ...options,
     };
 
     try {
       const response = await fetch(url, config);
-      
+
       if (response.status === 401 || response.status === 403) {
         this.handleUnauthorized();
-        throw new Error('Требуется повторная авторизация');
+        throw new Error("Требуется повторная авторизация");
       }
 
       if (!response.ok) {
@@ -65,31 +61,32 @@ class ApiClient {
   }
 
   handleUnauthorized() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    // Удаляем только данные пользователя, токен в localStorage не хранится
+    localStorage.removeItem("user");
+    // Не удаляем "authToken", потому что его там нет
+    window.location.href = "/login";
   }
 
-  // Специфичные методы API
+  // Специфичные методы API — без Authorization в headers
   async getStatus() {
-    return this.request('/status');
+    return this.request("/status");
   }
 
   async getScriptStatus() {
-    return this.request('/script-status');
+    return this.request("/script-status");
   }
 
   async uploadVideo(file) {
     const formData = new FormData();
-    formData.append('video', file);
+    formData.append("video", file);
 
-    return this.request('/upload-video', {
-      method: 'POST',
+    return this.request("/upload-video", {
+      method: "POST",
       body: formData,
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        'X-City': this.currentCity
-      }
+        // Убрано: Authorization: `Bearer ...`
+        "X-City": this.currentCity,
+      },
     });
   }
 
@@ -99,31 +96,34 @@ class ApiClient {
 
   async deleteVideoFile(filename) {
     const encodedName = encodeURIComponent(filename);
-    return this.request(`/video-files/${encodedName}?city=${this.currentCity}`, {
-      method: 'DELETE'
-    });
+    return this.request(
+      `/video-files/${encodedName}?city=${this.currentCity}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
   async runConcatScript() {
-    return this.request('/process-video', {
-      method: 'POST',
-      headers: this.getAuthHeaders('application/json'),
-      body: JSON.stringify({ city: this.currentCity })
+    return this.request("/process-video", {
+      method: "POST",
+      headers: this.getAuthHeaders("application/json"),
+      body: JSON.stringify({ city: this.currentCity }),
     });
   }
 
   async restartAllDevices() {
-    return this.request('/restart', {
-      method: 'POST',
-      headers: this.getAuthHeaders('application/json')
+    return this.request("/restart", {
+      method: "POST",
+      headers: this.getAuthHeaders("application/json"),
     });
   }
 
   async sendDeviceCommand(deviceId, command) {
     return this.request(`/device/${deviceId}/command`, {
-      method: 'POST',
-      headers: this.getAuthHeaders('application/json'),
-      body: JSON.stringify({ command })
+      method: "POST",
+      headers: this.getAuthHeaders("application/json"),
+      body: JSON.stringify({ command }),
     });
   }
 }
@@ -131,21 +131,22 @@ class ApiClient {
 // Создаем экземпляр
 const apiClient = new ApiClient();
 
-// Экспортируем экземпляр по умолчанию
+// Экспортируем
 export default apiClient;
 
-// Также экспортируем отдельные методы для обратной совместимости
-export const API_BASE = '/api';
-
+export const API_BASE = "/api";
 export const getCurrentCity = () => apiClient.getCurrentCity();
 export const setCurrentCity = (city) => apiClient.setCurrentCity(city);
 export const getHlsBaseUrl = () => apiClient.getHlsBaseUrl();
-export const getAuthHeaders = (contentType) => apiClient.getAuthHeaders(contentType);
+export const getAuthHeaders = (contentType) =>
+  apiClient.getAuthHeaders(contentType);
 export const getStatus = () => apiClient.getStatus();
 export const getScriptStatus = () => apiClient.getScriptStatus();
 export const uploadVideo = (file) => apiClient.uploadVideo(file);
 export const getVideoFiles = () => apiClient.getVideoFiles();
-export const deleteVideoFile = (filename) => apiClient.deleteVideoFile(filename);
+export const deleteVideoFile = (filename) =>
+  apiClient.deleteVideoFile(filename);
 export const runConcatScript = () => apiClient.runConcatScript();
 export const restartAllDevices = () => apiClient.restartAllDevices();
-export const sendDeviceCommand = (deviceId, command) => apiClient.sendDeviceCommand(deviceId, command);
+export const sendDeviceCommand = (deviceId, command) =>
+  apiClient.sendDeviceCommand(deviceId, command);

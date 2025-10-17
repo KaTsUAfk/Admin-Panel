@@ -2,7 +2,7 @@
   "ignore": [
     "K:/bik-service/**/*",
     "backend/active-tokens.json",
-    "backend/login-logs.json", 
+    "backend/login-logs.json",
     "backend/action-logs.json",
     "backend/users.json"
   ],

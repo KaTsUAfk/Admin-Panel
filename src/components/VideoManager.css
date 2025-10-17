@@ -268,3 +268,72 @@
     max-width: 150px;
   }
 }
+.dropzone {
+  flex: 1;
+  padding: 12px;
+  border: 2px dashed #ccc;
+  border-radius: 6px;
+  background: #fafafa;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  color: #000;
+}
+
+.dropzone.dragging {
+  border-color: var(--accent-color);
+  background: #f0f8ff;
+}
+
+.file-input {
+  color: #000;
+  display: none;
+}
+
+.file-preview {
+  margin: 10px 0;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin: 10px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  width: 0;
+  transition: width 0.2s;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  color: #000;
+  font-weight: bold;
+}
+
+.cancel-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.cancel-button:hover {
+  background: #c82333;
+}

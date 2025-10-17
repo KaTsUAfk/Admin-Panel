@@ -1,0 +1,49 @@
+// Это ваш Prisma schema файл
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // или "postgresql", "mysql", "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  username      String        @unique
+  passwordHash  String
+  role          String        @default("user")
+  createdAt     DateTime      @default(now())
+  settings      UserSettings?
+  loginLogs     LoginLog[]
+  actionLogs    ActionLog[]
+}
+
+model UserSettings {
+  userId   Int    @id
+  darkMode Boolean @default(false)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  username   String
+  ip         String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model ActionLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  username   String
+  role       String
+  action     String
+  details    Json?
+  ip         String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+}
