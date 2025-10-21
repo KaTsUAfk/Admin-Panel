@@ -3,10 +3,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border: 1px solid #DAB76F;
+  border: 1px solid #dab76f;
   border-radius: 20px;
   background: white;
-  color: #2D2B26;
+  color: #2d2b26;
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 0.9rem;
@@ -14,19 +14,19 @@
 }
 
 .theme-toggle-btn:hover {
-  background: #F8F4E9;
+  background: #f8f4e9;
   transform: translateY(-1px);
 }
 
 .theme-toggle-btn.dark {
-  background: #2D2B26;
+  background: #2d2b26;
   color: white;
-  border-color: #DAB76F;
+  border-color: #dab76f;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .theme-toggle-btn.dark:hover {
-  background: #3A3833;
+  background: #3a3833;
   transform: translateY(-1px);
 }
 

@@ -84,14 +84,15 @@ class ApiClient {
       method: "POST",
       body: formData,
       headers: {
-        // Убрано: Authorization: `Bearer ...`
         "X-City": this.currentCity,
       },
     });
   }
 
-  async getVideoFiles() {
-    return this.request(`/video-files?city=${this.currentCity}`);
+  async getVideoFiles(city) {
+    return this.request("/video-files", {
+      headers: { "X-City": city }
+    });
   }
 
   async deleteVideoFile(filename) {
@@ -111,11 +112,14 @@ class ApiClient {
       body: JSON.stringify({ city: this.currentCity }),
     });
   }
-
   async restartAllDevices() {
     return this.request("/restart", {
       method: "POST",
-      headers: this.getAuthHeaders("application/json"),
+      headers: {
+        ...this.getAuthHeaders("application/json"),
+        "X-City": this.currentCity,
+      },
+      body: JSON.stringify({ city: this.currentCity }),
     });
   }
 

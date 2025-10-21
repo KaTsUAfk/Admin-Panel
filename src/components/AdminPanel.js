@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from "react";
 import VideoManager from "./VideoManager";
 import DevicesTable from "./DevicesTable";
-import GlobalActions from "./GlobalActions";
 import Layout from "./Layout";
 import ActiveSessions from "./ActiveSessions";
 import VideoPlayer from "./VideoPlayer";
 import CitySwitcher from "./CitySwitcher";
+import VideoProgress from "./VideoProgress";
 import { useCity } from "./CityContext";
 import {
   getStatus,
@@ -24,13 +24,16 @@ const AdminPanel = () => {
   const { changeCity } = useCity();
   const currentUser = getCurrentUser();
 
-  
   const isAdmin = currentUser?.role === "admin";
   const isModerator = currentUser?.role === "moderator";
 
   const [serverData, setServerData] = useState(null);
   const [localTime, setLocalTime] = useState(new Date());
   const [devices, setDevices] = useState([]);
+
+  // Состояния для прогресса
+  const [showProgress, setShowProgress] = useState(false);
+  const [processingCity, setProcessingCity] = useState('');
 
   const handleCityChange = (city) => {
     changeCity(city);
@@ -68,7 +71,40 @@ const AdminPanel = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Мониторинг скрипта обработки видео
+  // Обработчик запуска обработки видео
+  const handleProcessVideo = async (city) => {
+    try {
+      console.log('Starting video processing for:', city); // Отладка
+      setProcessingCity(city);
+      setShowProgress(true);
+
+      const result = await runConcatScript(city);
+
+      console.log('Script start result:', result); // Отладка
+
+      if (!result.success) {
+        toast.error(result.message || 'Ошибка при запуске обработки видео');
+        setShowProgress(false);
+      }
+      // Прогресс будет отслеживаться автоматически через polling в VideoProgress
+    } catch (error) {
+      console.error('Error processing video:', error);
+      toast.error('Ошибка при запуске обработки видео');
+      setShowProgress(false);
+    }
+  };
+
+  // Обработчик завершения прогресса
+  const handleProgressComplete = () => {
+    console.log('Progress complete called'); // Отладка
+    setShowProgress(false);
+    setProcessingCity('');
+    // Обновляем список файлов
+    fetchStatus();
+    toast.success(`Обработка видео для ${processingCity} завершена!`);
+  };
+
+  // Мониторинг скрипта обработки видео (оставляем для обратной совместимости)
   const monitorScriptProgress = () => {
     const interval = setInterval(async () => {
       try {
@@ -127,16 +163,8 @@ const AdminPanel = () => {
 
           {/* Кнопка обновления */}
           <button
+            className="global-actions-buttons"
             onClick={fetchStatus}
-            style={{
-              marginTop: "8px",
-              padding: "6px 12px",
-              backgroundColor: "#DAB76F",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-            }}
           >
             🔄 Обновить статус
           </button>
@@ -144,29 +172,42 @@ const AdminPanel = () => {
           {/* Переключатель городов */}
           <CitySwitcher onCityChange={handleCityChange} />
 
+          {/* Компонент прогресса обработки видео */}
+          {showProgress && (
+            <VideoProgress
+              city={processingCity}
+              onComplete={handleProgressComplete}
+            />
+          )}
+
           {/* Плеер для админа и модератора */}
           {(isAdmin || isModerator) && <VideoPlayer />}
 
           <div className="main">
             <h2 style={{ marginTop: "50px" }}>Управление видеофайлами</h2>
-            <VideoManager onFilesChange={fetchStatus} />
-
-            <h2>Активные устройства</h2>
-            <DevicesTable
-              devices={devices}
-              sendCommand={sendDeviceCommand}
-              onCommandSent={fetchStatus}
+            <VideoManager
+              onFilesChange={fetchStatus}
+              onProcessVideo={handleProcessVideo} 
+              isProcessing={showProgress}
             />
+
+
 
             {(isAdmin || isModerator) && (
               <>
-                <h2>Глобальные действия</h2>
-                <GlobalActions
+                <h2>Активные устройства</h2>
+                <DevicesTable
+                  devices={devices}
+                  sendCommand={sendDeviceCommand}
+                  onCommandSent={fetchStatus}
                   restartAll={restartAllDevices}
-                  runConcatScript={runConcatScript}
+                  runConcatScript={handleProcessVideo} // Используем новый обработчик
                   monitorScriptProgress={monitorScriptProgress}
                   fetchStatus={fetchStatus}
+                  currentUser={currentUser}
+                  isProcessing={showProgress}
                 />
+
               </>
             )}
 

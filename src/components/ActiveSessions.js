@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAuthHeaders, API_BASE } from '../services/api';
 import { getCurrentUser } from '../services/authService';
+import { toast } from 'react-toastify';
 
 const ActiveSessions = () => {
   // Логи входов
@@ -26,7 +27,7 @@ const ActiveSessions = () => {
       setLoginSessions(loginData.sessions || []);
       setActionLogs(actionData.logs || []);
     } catch (err) {
-      alert('Ошибка загрузки логов: ' + err.message);
+      toast.error('Ошибка загрузки логов: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,7 @@ const ActiveSessions = () => {
         document.body.removeChild(a);
       })
       .catch(err => {
-        alert('Ошибка скачивания логов входа: ' + err.message);
+        toast.error('Ошибка скачивания логов входа: ' + err.message);
       });
   };
 
@@ -66,7 +67,7 @@ const ActiveSessions = () => {
         document.body.removeChild(a);
       })
       .catch(err => {
-        alert('Ошибка скачивания логов действий: ' + err.message);
+        toast.error('Ошибка скачивания логов действий: ' + err.message);
       });
   };
 
@@ -155,18 +156,18 @@ const ActiveSessions = () => {
             ))}
           </tbody>
         </table>)}
-        <div className="global-actions-buttons">
-          <button
-            onClick={handleDownloadLoginLogs}
-          >
-            📥 Скачать логи входов
-          </button>
-          <button
-            onClick={handleDownloadActionLogs}
-          >
-            📥 Скачать логи действий
-          </button>
-        </div>
+      <div className="global-actions-buttons">
+        <button
+          onClick={handleDownloadLoginLogs}
+        >
+          📥 Скачать логи входов
+        </button>
+        <button
+          onClick={handleDownloadActionLogs}
+        >
+          📥 Скачать логи действий
+        </button>
+      </div>
     </div>
   );
 };

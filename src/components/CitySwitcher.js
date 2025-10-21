@@ -1,7 +1,7 @@
 // src/components/CitySwitcher.js
 import React from "react";
 import { setCurrentCity, getCurrentCity } from "../services/api";
-import { getCurrentUser } from "../services/authService"; 
+import { getCurrentUser } from "../services/authService";
 
 const CitySwitcher = ({ onCityChange }) => {
   const currentCity = getCurrentCity();
@@ -48,16 +48,8 @@ const CitySwitcher = ({ onCityChange }) => {
       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
         {allowedCities.includes("kurgan") && (
           <button
+            className={`global-sity-buttons ${currentCity === "kurgan" ? "active" : ""}`}
             onClick={() => handleCityChange("kurgan")}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: currentCity === "kurgan" ? "#DAB76F" : "#e0e0e0",
-              color: currentCity === "kurgan" ? "#000" : "#666",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontWeight: currentCity === "kurgan" ? "bold" : "normal",
-            }}
           >
             📍 Курган
           </button>
@@ -65,16 +57,8 @@ const CitySwitcher = ({ onCityChange }) => {
 
         {allowedCities.includes("ekat") && (
           <button
+            className={`global-sity-buttons ${currentCity === "ekat" ? "active" : ""}`}
             onClick={() => handleCityChange("ekat")}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: currentCity === "ekat" ? "#DAB76F" : "#e0e0e0",
-              color: currentCity === "ekat" ? "#000" : "#666",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontWeight: currentCity === "ekat" ? "bold" : "normal",
-            }}
           >
             🏔️ Екатеринбург
           </button>

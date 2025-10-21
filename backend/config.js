@@ -40,12 +40,14 @@ const config = {
         process.env.KURGAN_SCRIPT_PATH || "K:\\bik-service\\kurgan\\concat.bat",
       HLS_URL:
         process.env.KURGAN_HLS_URL || "http://109.195.134.244:8096/kurgan",
+      NGINX_HTML: "C:\\nginx-1.29.1\\html\\kurgan",
     },
     ekat: {
       VIDEO_DIR: process.env.EKAT_VIDEO_DIR || "K:\\bik-service\\ekat",
       SCRIPT_PATH:
         process.env.EKAT_SCRIPT_PATH || "K:\\bik-service\\ekat\\concat.bat",
       HLS_URL: process.env.EKAT_HLS_URL || "http://109.195.134.244:8096/ekat",
+      NGINX_HTML: "C:\\nginx-1.29.1\\html\\ekat",
     },
   },
 

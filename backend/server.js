@@ -73,13 +73,29 @@ class SyncServer {
     try {
       const deviceId = String(req.query.deviceId || "").trim();
       const position = Helpers.toInt(req.query.position, 0);
+      const city = req.query.city || req.body?.city || 'unknown';
+      console.log(`[SYNC] Device ${deviceId} synced with city: "${city}"`);
 
       if (!deviceId || deviceId.length > 128) {
         return res.status(400).json({ error: "Invalid deviceId" });
       }
 
-      const syncData = this.deviceManager.handleDeviceSync(deviceId, position);
-      res.json(syncData);
+      const syncData = this.deviceManager.handleDeviceSync(deviceId, position, req);
+
+      res.json({
+        serverTime: Date.now(),
+        sessionId: syncData.session?.id || 'default',
+        phase: syncData.session?.phase || 'idle',
+        startAtMillis: syncData.session?.restartAt || null,
+        requiredDevices: 1,
+        confirmedDevices: this.deviceManager.getDeviceCount(),
+        deviceId: deviceId,
+        isMaster: syncData.isMaster || false,
+        activeDevices: this.deviceManager.getDeviceCount(),
+        recommendedAction: 'play',
+        targetPositionMillis: position,
+        remoteCommand: syncData.remoteCommand || null
+      });
     } catch (error) {
       console.error("Sync error:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -173,6 +189,8 @@ class SyncServer {
     this.app.get("/api/sync", this.handleSync.bind(this));
     this.app.post("/api/confirm", this.handleConfirm.bind(this));
     this.app.get("/api/health", this.handleHealth.bind(this));
+    this.app.get("/api/script-progress", this.handleScriptProgress.bind(this));
+
 
     // Защищенные маршруты - применяем аутентификацию
     this.app.use("/api", this.handleAuth.bind(this));
@@ -183,7 +201,7 @@ class SyncServer {
       validateCity,
       this.handleUploadVideo.bind(this)
     );
-    this.app.post("/api/restart", this.handleRestart.bind(this));
+    this.app.post("/api/restart", validateCity, this.handleRestart.bind(this));
     this.app.get("/api/status", this.handleStatus.bind(this));
     this.app.get("/api/video-files", this.handleGetVideoFiles.bind(this));
     this.app.delete(
@@ -234,10 +252,30 @@ class SyncServer {
     }
   }
 
+  handleScriptProgress(req, res) {
+    try {
+      const status = this.scriptService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Script progress error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Ошибка получения статуса скрипта",
+        progress: 0,
+        currentStep: 'Ошибка'
+      });
+    }
+  }
   handleRestart(req, res) {
     try {
-      const restartData = this.deviceManager.scheduleCountdown();
-      // ✅ Лог действия
+      const city = req.city;
+      console.log(`=== RESTART REQUEST FOR CITY: ${city} ===`);
+
+      const restartData = this.deviceManager.scheduleCountdown(city);
+
+      // Логируем для отладки
+      console.log(`Active devices in DeviceManager:`, Array.from(this.deviceManager.devices.values()).map(d => ({ id: d.id, city: d.city })));
+
       prisma.actionLog
         .create({
           data: {
@@ -245,6 +283,7 @@ class SyncServer {
             username: req.user?.username || "anonymous",
             role: req.user?.role || "guest",
             action: "restart_devices",
+            details: { city: city },
             ip: getClientIp(req),
             userAgent: req.get("User-Agent"),
           },
@@ -259,7 +298,8 @@ class SyncServer {
 
   handleStatus(req, res) {
     try {
-      const status = this.deviceManager.getStatus();
+      const city = req.city;
+      const status = this.deviceManager.getStatus(city);
       res.json(status);
     } catch (error) {
       console.error("Status error:", error);

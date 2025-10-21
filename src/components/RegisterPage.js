@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register } from '../services/authService';
+import { toast } from 'react-toastify';
 
 const RegisterPage = () => {
   const [username, setUsername] = useState('');
@@ -24,7 +25,7 @@ const RegisterPage = () => {
     try {
       const result = await register(username, password);
       if (result.success) {
-        alert('Регистрация успешна! Войдите в систему.');
+        toast.success('Регистрация успешна! Войдите в систему.');
         navigate('/login');
       } else {
         setError(result.error || 'Ошибка регистрации');

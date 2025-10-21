@@ -15,8 +15,11 @@ export const CityProvider = ({ children }) => {
   const [currentCity, setCurrentCity] = useState(api.getCurrentCity());
 
   const changeCity = (city) => {
-    api.setCurrentCity(city);
-    setCurrentCity(city);
+    if (city === "kurgan" || city === "ekat") {
+      setCurrentCity(city);
+      localStorage.setItem("currentCity", city);
+      api.setCurrentCity(city); // ✅ Обновляем город в API-клиенте
+    }
   };
 
   const value = {

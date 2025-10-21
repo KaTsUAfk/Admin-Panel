@@ -1,17 +1,24 @@
 // src/components/GlobalActions.js
 import React from 'react';
 import { getCurrentCity } from '../services/api';
+import { toast } from 'react-toastify';
 
-const GlobalActions = ({ restartAll, runConcatScript, monitorScriptProgress, fetchStatus }) => {
+const GlobalActions = ({
+  restartAll,
+  runConcatScript,
+  monitorScriptProgress,
+  fetchStatus,
+  isProcessing
+}) => {
   const currentCity = getCurrentCity();
 
   const handleRestartAll = async () => {
     try {
       const result = await restartAll();
-      alert(result.message);
+      toast.success(result.message);
       fetchStatus();
     } catch (e) {
-      alert('Ошибка: ' + e.message);
+      toast.error('Ошибка: ' + e.message);
     }
   };
 
@@ -21,22 +28,30 @@ const GlobalActions = ({ restartAll, runConcatScript, monitorScriptProgress, fet
     try {
       const result = await runConcatScript();
       if (result.success) {
-        alert(`Скрипт успешно запущен для города ${currentCity === 'kurgan' ? 'Курган' : 'Екатеринбург'}!`);
+        toast.success(`Скрипт успешно запущен для города ${currentCity === 'kurgan' ? 'Курган' : 'Екатеринбург'}!`);
         if (monitorScriptProgress) monitorScriptProgress();
       } else {
-        alert('Ошибка: ' + result.message);
+        toast.error('Ошибка: ' + result.message);
       }
     } catch (e) {
-      alert('Ошибка: ' + e.message);
+      toast.error('Ошибка: ' + e.message);
     }
   };
 
   return (
-    <div className="global-actions-buttons">
-      <button onClick={handleRestartAll}>Перезагрузить все устройства</button>
-      <button onClick={handleRunConcatScript}>
-        🔄 Обновить видео на сервер ({currentCity === 'kurgan' ? 'Курган' : 'Екатеринбург'})
-      </button>
+    <div className='video-list-section'>
+      <button
+        className="global-actions-buttons"
+        onClick={handleRestartAll}>Перезагрузить все устройства</button>
+      <div className="upload-info"
+      >
+        <p>
+          <strong>Правило:</strong>
+        </p>
+        <ul>
+          <li>Данное действие полностью сбрасывает все устройства которые подключены, возвращает их в позицию 00:00 на видео.</li>
+        </ul>
+      </div>
     </div>
   );
 };

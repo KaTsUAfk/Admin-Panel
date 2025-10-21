@@ -3,6 +3,7 @@ import { useCity } from "./CityContext";
 import api from "../services/api";
 import "./VideoManager.css";
 import { getCurrentUser } from "../services/authService";
+import { toast } from "react-toastify";
 
 // Подкомпонент для загрузки видео
 const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
@@ -17,7 +18,6 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // Автоматически скрывать статус через 5 сек
   useEffect(() => {
     if (uploadStatus) {
       const timer = setTimeout(() => setUploadStatus(""), 5000);
@@ -53,7 +53,6 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
       return;
     }
 
-    // Берём первый файл (можно расширить до очереди)
     const selectedFile = validFiles[0];
     setFile(selectedFile);
     setUploadStatus("");
@@ -102,15 +101,16 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
       setUploading(false);
     }
   };
+
   const handleDropzoneClick = () => {
     if (!uploading && fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
+
   return (
     <div className="video-upload-section">
       <h3>📤 Загрузить новое видео</h3>
-
       <div className="upload-controls">
         <div
           className={`dropzone ${isDragging ? "dragging" : ""}`}
@@ -120,9 +120,8 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
           onClick={handleDropzoneClick}
           style={{ cursor: uploading ? "not-allowed" : "pointer" }}
         >
-          {/* Скрытый input */}
           <input
-            ref={fileInputRef} // ← привязка ref
+            ref={fileInputRef}
             id="video-upload-input"
             type="file"
             accept="video/*,.mp4"
@@ -169,23 +168,17 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
 
       {uploadStatus && (
         <div
-          className={`upload-status ${
-            uploadStatus.includes("✅") ? "success" : "error"
-          }`}
+          className={`upload-status ${uploadStatus.includes("✅") ? "success" : "error"}`}
           dangerouslySetInnerHTML={{ __html: uploadStatus }}
         />
       )}
 
       <div className="upload-info">
-        <p>
-          <strong>Требования:</strong>
-        </p>
+        <p><strong>Требования:</strong></p>
         <ul>
           <li>✅ Форматы: MP4, MOV, AVI (рекомендуется MP4)</li>
           <li>✅ Максимальный размер: 500MB</li>
-          <li>
-            📍 Файл будет загружен в город: <strong>{cityName}</strong>
-          </li>
+          <li>📍 Файл будет загружен в город: <strong>{cityName}</strong></li>
         </ul>
       </div>
     </div>
@@ -193,7 +186,16 @@ const VideoUpload = ({ onUpload, uploading, setUploading, cityName }) => {
 };
 
 // Подкомпонент для списка файлов
-const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
+const VideoFileList = ({
+  files,
+  loading,
+  onDelete,
+  onRefresh,
+  cityName,
+  onProcessVideo,
+  isProcessing,
+  currentCity,
+}) => {
   const [deletingFile, setDeletingFile] = useState(null);
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
@@ -202,9 +204,8 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
     setDeletingFile(filename);
     const result = await onDelete(filename);
     setDeletingFile(null);
-
     if (!result.success) {
-      alert(result.message);
+      toast.success(result.message);
     }
   };
 
@@ -238,7 +239,7 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
         <h3>📁 Доступные видеофайлы ({cityName})</h3>
         <button
           onClick={onRefresh}
-          className="refresh-button"
+          className="global-actions-buttons"
           title="Обновить список"
         >
           🔄 Обновить
@@ -253,68 +254,90 @@ const VideoFileList = ({ files, loading, onDelete, onRefresh, cityName }) => {
           </p>
         </div>
       ) : (
-        <div className="files-table-container">
-          <table className="video-files-table">
-            <thead>
-              <tr>
-                <th>Имя файла</th>
-                <th>Размер</th>
-                <th>Изменен</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((file) => (
-                <tr
-                  key={file.name}
-                  className={deletingFile === file.name ? "deleting" : ""}
-                >
-                  <td className="filename-cell">
-                    <span className="filename" title={file.name}>
-                      {file.name}
-                    </span>
-                    {file.error && (
-                      <span className="file-error" title={file.error}>
-                        ⚠️
-                      </span>
-                    )}
-                  </td>
-                  <td className="size-cell">{formatFileSize(file.size)}</td>
-                  <td className="date-cell">{formatDate(file.modified)}</td>
-                  <td className="actions-cell">
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleDelete(file.name)}
-                        disabled={deletingFile === file.name}
-                        className="delete-button"
-                        title={`Удалить файл ${file.name}`}
-                      >
-                        {deletingFile === file.name ? "⏳" : "🗑️"}
-                        {deletingFile === file.name
-                          ? " Удаление..."
-                          : " Удалить"}
-                      </button>
-                    )}
-                  </td>
+        <>
+          <div className="files-table-container">
+            <table className="video-files-table">
+              <thead>
+                <tr>
+                  <th>Имя файла</th>
+                  <th>Размер</th>
+                  <th>Изменен</th>
+                  <th>Действия</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {files.map((file) => (
+                  <tr
+                    key={file.name}
+                    className={deletingFile === file.name ? "deleting" : ""}
+                  >
+                    <td className="filename-cell">
+                      <span className="filename" title={file.name}>
+                        {file.name}
+                      </span>
+                      {file.error && (
+                        <span className="file-error" title={file.error}>
+                          ⚠️
+                        </span>
+                      )}
+                    </td>
+                    <td className="size-cell">{formatFileSize(file.size)}</td>
+                    <td className="date-cell">{formatDate(file.modified)}</td>
+                    <td className="actions-cell">
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDelete(file.name)}
+                          disabled={deletingFile === file.name}
+                          className="delete-button"
+                          title={`Удалить файл ${file.name}`}
+                        >
+                          {deletingFile === file.name ? "⏳" : "🗑️"}
+                          {deletingFile === file.name
+                            ? " Удаление..."
+                            : " Удалить"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-          <div className="files-summary">
-            Всего файлов: <strong>{files.length}</strong> | Общий размер:{" "}
-            <strong>
-              {formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}
-            </strong>
+            <div className="files-summary">
+              Всего файлов: <strong>{files.length}</strong> | Общий размер:{" "}
+              <strong>
+                {formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}
+              </strong>
+            </div>
           </div>
-        </div>
+
+          {/* Кнопка и правило — внутри video-list-section */}
+          <div style={{ marginTop: "20px" }}>
+            <button
+              className="global-actions-buttons"
+              onClick={() => onProcessVideo(currentCity)}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Обновление..." : "Обновить видео на сервере"}
+            </button>
+
+            <div className="upload-info" style={{ marginTop: "15px" }}>
+              <p><strong>Правило:</strong></p>
+              <ul>
+                <li>
+                  Данная кнопка обновляет видео на сервере путем конвертирования и соединения всех доступных файлов, кнопка работает только для города на котором вы находитесь, и доступные файлы у них тоже разные. После нажатия на кнопку на сторне сервера запускается скрипт который все это делает.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 };
 
 // Основной компонент VideoManager
-const VideoManager = ({ onFilesChange }) => {
+const VideoManager = ({ onFilesChange, onProcessVideo, isProcessing }) => {
   const { currentCity, cityName } = useCity();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -323,7 +346,7 @@ const VideoManager = ({ onFilesChange }) => {
   const loadFiles = async () => {
     setLoading(true);
     try {
-      const result = await api.getVideoFiles();
+      const result = await api.getVideoFiles(currentCity);
       setFiles(result.files || []);
       if (onFilesChange) {
         onFilesChange(result.files || []);
@@ -342,14 +365,12 @@ const VideoManager = ({ onFilesChange }) => {
       const formData = new FormData();
       formData.append("video", file);
 
-      const city = currentCity;
-
       return new Promise((resolve) => {
         const xhr = new XMLHttpRequest();
         const signal = getSignal();
 
         xhr.open("POST", "/api/upload-video");
-        xhr.setRequestHeader("X-City", city);
+        xhr.setRequestHeader("X-City", currentCity);
 
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
@@ -435,6 +456,9 @@ const VideoManager = ({ onFilesChange }) => {
         onDelete={handleDelete}
         onRefresh={loadFiles}
         cityName={cityName}
+        onProcessVideo={onProcessVideo}
+        isProcessing={isProcessing}
+        currentCity={currentCity}
       />
     </div>
   );

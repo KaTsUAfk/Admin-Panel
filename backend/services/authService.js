@@ -43,7 +43,7 @@ class AuthService {
       const user = await prisma.user.create({
         data: {
           username,
-          password: hashedPassword,
+          passwordHash: hashedPassword,
           role: "moderator", // или "user" — по умолчанию
         },
         select: { id: true, username: true, role: true },
@@ -128,7 +128,7 @@ class AuthService {
       try {
         jwt.verify(token, config.SECRET_KEY);
         validTokens.add(token);
-      } catch {}
+      } catch { }
     }
     global.activeTokens = validTokens;
   }
